@@ -1,7 +1,7 @@
 from typing import Any, Dict, Union
 
 from synapse.api.errors import SynapseError
-from synapse.api.errcodes import Codes
+from synapse.api.errors import Codes
 from synapse.events import EventBase
 from synapse.module_api import ModuleApi
 from synapse.module_api.errors import ConfigError
