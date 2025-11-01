@@ -1,11 +1,10 @@
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Tuple
 
-from synapse.api.errors import SynapseError
-from synapse.api.errors import Codes
+from synapse.api.errors import Codes, SynapseError
 from synapse.events import EventBase
 from synapse.module_api import ModuleApi
 from synapse.module_api.errors import ConfigError
-from synapse.types import EventContext
+from synapse.types import StateMap
 
 class RestrictionModule:
     @staticmethod
@@ -41,19 +40,21 @@ class RestrictionModule:
             check_can_deactivate_user=self.check_can_deactivate_user,
         )
 
-    async def check_event_allowed(self, event: EventBase, context: EventContext) -> Union[Dict[str, Any], bool]:
+    async def check_event_allowed(
+        self, event: EventBase, state_events: StateMap[EventBase]
+    ) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """
         Check if the event is a user attempting to leave a restricted room.
         """
         if event.type != "m.room.member":
-            return True
+            return True, None
 
         membership = event.content.get("membership")
         if membership != "leave":
-            return True
+            return True, None
 
         if event.room_id not in self._restricted_rooms:
-            return True
+            return True, None
 
         # If the sender is the same as the state_key, it's a self-leave attempt
         if event.sender == event.state_key:
@@ -61,7 +62,7 @@ class RestrictionModule:
             raise SynapseError(403, self._leave_error_message, errcode=Codes.FORBIDDEN)
 
         # Allow other actions (e.g., admin kicks)
-        return True
+        return True, None
 
     async def check_can_deactivate_user(self, user_id: str, by_admin: bool) -> bool:
         """
