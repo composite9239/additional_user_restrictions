@@ -42,19 +42,19 @@ class RestrictionModule:
 
     async def check_event_allowed(
         self, event: EventBase, state_events: StateMap[EventBase]
-    ) -> Any:
+    ) -> EventBase:
         """
         Check if the event is a user attempting to leave a restricted room.
         """
         if event.type != "m.room.member":
-            return True
+            return event
 
         membership = event.content.get("membership")
         if membership != "leave":
-            return True
+            return event
 
         if event.room_id not in self._restricted_rooms:
-            return True
+            return event
 
         # If the sender is the same as the state_key, it's a self-leave attempt
         if event.sender == event.state_key:
@@ -64,7 +64,7 @@ class RestrictionModule:
                 raise SynapseError(403, self._leave_error_message, errcode=Codes.FORBIDDEN)
 
         # Allow other actions (e.g., admin kicks, remote leaves)
-        return True
+        return event
 
     async def check_can_deactivate_user(self, user_id: str, by_admin: bool) -> bool:
         """
