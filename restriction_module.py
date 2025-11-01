@@ -1,8 +1,11 @@
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
+from synapse.api.errors import SynapseError
+from synapse.api.errcodes import Codes
 from synapse.events import EventBase
-from synapse.module_api import ModuleApi, NOT_SPAM
+from synapse.module_api import ModuleApi
 from synapse.module_api.errors import ConfigError
+from synapse.types import EventContext
 
 class RestrictionModule:
     @staticmethod
@@ -33,34 +36,32 @@ class RestrictionModule:
         self._leave_error_message = config["leave_error_message"]
 
         # Register the relevant callbacks
-        self._api.register_spam_checker_callbacks(
-            check_event_for_spam=self.check_event_for_spam,
-        )
         self._api.register_third_party_rules_callbacks(
+            check_event_allowed=self.check_event_allowed,
             check_can_deactivate_user=self.check_can_deactivate_user,
         )
 
-    async def check_event_for_spam(self, event: EventBase) -> Any:
+    async def check_event_allowed(self, event: EventBase, context: EventContext) -> Union[Dict[str, Any], bool]:
         """
         Check if the event is a user attempting to leave a restricted room.
         """
         if event.type != "m.room.member":
-            return NOT_SPAM
+            return True
 
         membership = event.content.get("membership")
         if membership != "leave":
-            return NOT_SPAM
+            return True
 
         if event.room_id not in self._restricted_rooms:
-            return NOT_SPAM
+            return True
 
         # If the sender is the same as the state_key, it's a self-leave attempt
         if event.sender == event.state_key:
-            # Reject with custom error message (using string return for custom msg, as per docs)
-            return self._leave_error_message
+            # Reject with custom error
+            raise SynapseError(403, self._leave_error_message, errcode=Codes.FORBIDDEN)
 
         # Allow other actions (e.g., admin kicks)
-        return NOT_SPAM
+        return True
 
     async def check_can_deactivate_user(self, user_id: str, by_admin: bool) -> bool:
         """
