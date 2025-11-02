@@ -1,10 +1,8 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict
 
-from synapse.api.errors import Codes, SynapseError
 from synapse.events import EventBase
-from synapse.module_api import ModuleApi
+from synapse.module_api import ModuleApi, NOT_SPAM
 from synapse.module_api.errors import ConfigError
-from synapse.types import StateMap
 
 class RestrictionModule:
     @staticmethod
@@ -34,37 +32,39 @@ class RestrictionModule:
         self._restricted_rooms = config["restricted_rooms"]
         self._leave_error_message = config["leave_error_message"]
 
-        # Register the relevant callbacks
+        # Register the spam checker for room leave prevention
+        self._api.register_spam_checker_callbacks(
+            check_event_for_spam=self.check_event_for_spam,
+        )
+
+        # Register the third party rules for account deactivation prevention
         self._api.register_third_party_rules_callbacks(
-            check_event_allowed=self.check_event_allowed,
             check_can_deactivate_user=self.check_can_deactivate_user,
         )
 
-    async def check_event_allowed(
-        self, event: EventBase, state_events: StateMap[EventBase]
-    ) -> Tuple[bool, Optional[Dict[str, Any]]]:
+    async def check_event_for_spam(self, event: EventBase) -> Any:
         """
-        Check if the event is a user attempting to leave a restricted room.
+        Check if the event is a local user attempting to leave a restricted room.
         """
         if event.type != "m.room.member":
-            return True, None
+            return NOT_SPAM
 
         membership = event.content.get("membership")
         if membership != "leave":
-            return True, None
+            return NOT_SPAM
 
         if event.room_id not in self._restricted_rooms:
-            return True, None
+            return NOT_SPAM
 
         # If the sender is the same as the state_key, it's a self-leave attempt
         if event.sender == event.state_key:
             # Only block if the user is local
             if self._api.is_mine(event.sender):
-                # Reject with custom error
-                raise SynapseError(403, self._leave_error_message, errcode=Codes.FORBIDDEN)
+                # Reject with custom error message (using string return, deprecated but supports custom msg)
+                return self._leave_error_message
 
         # Allow other actions (e.g., admin kicks, remote leaves)
-        return True, None
+        return NOT_SPAM
 
     async def check_can_deactivate_user(self, user_id: str, by_admin: bool) -> bool:
         """
