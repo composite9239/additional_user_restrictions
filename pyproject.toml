@@ -7,7 +7,8 @@ name = "restriction-module"
 version = "0.1.0"
 description = "A Synapse module for restricting user actions like leaving rooms or deactivating accounts."
 dependencies = [
-    "matrix-synapse>=1.100.0",  # Updated for modern Synapse (adjust if needed for your version)
+    "matrix-synapse>=1.100.0",
+    "attrs",  # For config class; remove if not needed
 ]
 requires-python = ">=3.9"
 
