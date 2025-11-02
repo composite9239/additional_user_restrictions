@@ -3,11 +3,19 @@ import logging
 
 from synapse.events import EventBase
 from synapse.module_api import ModuleApi
+from synapse.module_api.errors import ConfigError
 from synapse.types import StateMap
 
 from .config import RestrictionModuleConfig
 
 class RestrictionModule:
+    @staticmethod
+    def parse_config(config: Dict[str, Any]) -> RestrictionModuleConfig:
+        try:
+            return RestrictionModuleConfig.from_config(config)
+        except (TypeError, ValueError) as e:
+            raise ConfigError(f"Failed to parse restriction module config: {e}")
+
     def __init__(self, config: RestrictionModuleConfig, api: ModuleApi):
         self._api = api
         self._restricted_rooms = config.restricted_rooms
