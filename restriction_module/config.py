@@ -1,25 +1,14 @@
-from typing import Any, Dict
+from typing import Any, Dict, Set
 from synapse.module_api.errors import ConfigError
 
+@attr.s(auto_attribs=True, frozen=True)
 class RestrictionModuleConfig:
-    """
-    Parsed and validated module configuration.
-    """
-    def __init__(
-        self,
-        restricted_rooms: set[str],
-        local_domain: str,
-        leave_error_message: str,
-    ):
-        self.restricted_rooms = restricted_rooms
-        self.local_domain = local_domain
-        self.leave_error_message = leave_error_message
+    restricted_rooms: Set[str]
+    local_domain: str
+    leave_error_message: str
 
     @staticmethod
-    def parse_config(config: Dict[str, Any]) -> "RestrictionModuleConfig":
-        """
-        Parse and validate the module configuration.
-        """
+    def from_config(config: Dict[str, Any]) -> "RestrictionModuleConfig":
         restricted_rooms = config.get("restricted_rooms", [])
         if not isinstance(restricted_rooms, list):
             raise ConfigError("restricted_rooms must be a list of strings")
@@ -36,7 +25,7 @@ class RestrictionModuleConfig:
             raise ConfigError("leave_error_message must be a string")
 
         return RestrictionModuleConfig(
-            restricted_rooms=set(restricted_rooms),  # Use a set for O(1) lookups
+            restricted_rooms=set(restricted_rooms),
             local_domain=local_domain,
             leave_error_message=leave_error_message,
         )
