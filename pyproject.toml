@@ -9,7 +9,7 @@ description = "A Synapse module for restricting user actions like leaving rooms 
 dependencies = [
     "matrix-synapse>=1.100.0",  # Updated for modern Synapse (adjust if needed for your version)
 ]
-requires-python = ">=3.9"  # Synapse now requires Python 3.9+
+requires-python = ">=3.9"
 
 [tool.setuptools]
-py-modules = ["restriction_module"]
+packages = ["restriction_module"]
