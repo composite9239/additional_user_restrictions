@@ -1,4 +1,6 @@
 from typing import Any, Dict, Optional, Tuple
+import logging
+
 from synapse.events import EventBase
 from synapse.module_api import ModuleApi
 from synapse.module_api.errors import ConfigError
@@ -35,14 +37,13 @@ class RestrictionModule:
         self._api = api
         self._restricted_rooms = config["restricted_rooms"]
         self._local_domain = config["local_domain"]
-        self._leave_error_message = config["leave_error_message"]  # Unused for now (see class docstring)
+        self._leave_error_message = config["leave_error_message"]
+
+        self.logger = logging.getLogger("restriction_module")
 
         # Register the third-party rules callback for hard-blocking room leaves
         self._api.register_third_party_rules_callbacks(
             check_event_allowed=self.check_event_allowed,
-        )
-        # Register for account deactivation prevention (unchanged)
-        self._api.register_third_party_rules_callbacks(
             check_can_deactivate_user=self.check_can_deactivate_user,
         )
 
@@ -55,7 +56,7 @@ class RestrictionModule:
     ) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """
         Hard-block local users from leaving restricted rooms.
-        Returns (False, None) to reject the event with a generic "Forbidden" error.
+        Returns (False, error_dict) to reject the event with a custom message.
         """
         if event.type != "m.room.member":
             return True, None
@@ -75,8 +76,13 @@ class RestrictionModule:
         if not self._is_local_user(event.sender):
             return True, None
 
-        # Hard reject the leave attempt
-        return False, None
+        self.logger.info(f"Blocking leave attempt in restricted room {event.room_id} by {event.sender}")
+
+        # Hard reject with custom error message
+        return False, {
+            "errcode": "M_FORBIDDEN",
+            "error": self._leave_error_message,
+        }
 
     async def check_can_deactivate_user(self, user_id: str, by_admin: bool) -> bool:
         """
