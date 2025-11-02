@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "restriction_module"  # Changed to underscore to avoid potential hyphen-related import/install issues
+name = "restriction-module"
 version = "0.1.0"
 description = "A Synapse module for restricting user actions like leaving rooms or deactivating accounts."
 dependencies = [
-    "matrix-synapse>=1.100.0",  # Updated for modern Synapse (adjust if needed for your version)
+    "matrix-synapse>=1.37.0",  # Adjust based on your Synapse version for compatibility
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.7"
 
 [tool.setuptools]
-packages = ["restriction_module"]
+py-modules = ["restriction_module"]
