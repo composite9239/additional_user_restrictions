@@ -3,43 +3,18 @@ import logging
 
 from synapse.events import EventBase
 from synapse.module_api import ModuleApi
-from synapse.module_api.errors import ConfigError
 from synapse.types import StateMap
 
+from .config import RestrictionModuleConfig
+
 class RestrictionModule:
-    @staticmethod
-    def parse_config(config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Parse and validate the module configuration.
-        """
-        restricted_rooms = config.get("restricted_rooms", [])
-        if not isinstance(restricted_rooms, list):
-            raise ConfigError("restricted_rooms must be a list of strings")
-        for room in restricted_rooms:
-            if not isinstance(room, str) or not room.startswith("!"):
-                raise ConfigError("Each entry in restricted_rooms must be a valid room ID starting with '!'")
-
-        local_domain = config.get("local_domain")
-        if not isinstance(local_domain, str) or not local_domain:
-            raise ConfigError("local_domain must be a non-empty string (e.g., 'example.com')")
-
-        leave_error_message = config.get("leave_error_message", "You are not allowed to leave this room.")
-        if not isinstance(leave_error_message, str):
-            raise ConfigError("leave_error_message must be a string")
-
-        return {
-            "restricted_rooms": set(restricted_rooms),  # Use a set for O(1) lookups
-            "local_domain": local_domain,
-            "leave_error_message": leave_error_message,
-        }
-
-    def __init__(self, config: Dict[str, Any], api: ModuleApi):
+    def __init__(self, config: RestrictionModuleConfig, api: ModuleApi):
         self._api = api
-        self._restricted_rooms = config["restricted_rooms"]
-        self._local_domain = config["local_domain"]
-        self._leave_error_message = config["leave_error_message"]
+        self._restricted_rooms = config.restricted_rooms
+        self._local_domain = config.local_domain
+        self._leave_error_message = config.leave_error_message
 
-        self.logger = logging.getLogger("restriction_module")
+        self.logger = logging.getLogger(__name__)
         self.logger.info(
             "RestrictionModule initialized. Restricted rooms: %s, local_domain: %s",
             list(self._restricted_rooms),
