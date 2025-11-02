@@ -40,12 +40,18 @@ class RestrictionModule:
         self._leave_error_message = config["leave_error_message"]
 
         self.logger = logging.getLogger("restriction_module")
+        self.logger.info(
+            "RestrictionModule initialized. Restricted rooms: %s, local_domain: %s",
+            list(self._restricted_rooms),
+            self._local_domain
+        )
 
-        # Register the third-party rules callback for hard-blocking room leaves
+        # Register the third-party rules callbacks
         self._api.register_third_party_rules_callbacks(
             check_event_allowed=self.check_event_allowed,
             check_can_deactivate_user=self.check_can_deactivate_user,
         )
+        self.logger.info("Third-party rules callbacks registered.")
 
     def _is_local_user(self, user_id: str) -> bool:
         """Check if the user_id belongs to this homeserver's domain."""
@@ -58,25 +64,33 @@ class RestrictionModule:
         Hard-block local users from leaving restricted rooms.
         Returns (False, error_dict) to reject the event with a custom message.
         """
+        membership = event.content.get("membership")
+        self.logger.info(
+            "check_event_allowed called: type=%s, room_id=%s, sender=%s, state_key=%s, membership=%s",
+            event.type, event.room_id, event.sender, event.state_key, membership
+        )
+
         if event.type != "m.room.member":
+            self.logger.info("Allowed: Not a membership event.")
             return True, None
 
-        membership = event.content.get("membership")
         if membership != "leave":
+            self.logger.info("Allowed: Membership not 'leave'.")
             return True, None
 
         if event.room_id not in self._restricted_rooms:
+            self.logger.info("Allowed: Room not restricted.")
             return True, None
 
-        # Only block self-leaves (sender == state_key)
         if event.sender != event.state_key:
+            self.logger.info("Allowed: Not a self-leave (e.g., kick).")
             return True, None
 
-        # Only block local users
         if not self._is_local_user(event.sender):
+            self.logger.info("Allowed: Not a local user.")
             return True, None
 
-        self.logger.info(f"Blocking leave attempt in restricted room {event.room_id} by {event.sender}")
+        self.logger.info("Blocking leave attempt in restricted room %s by %s", event.room_id, event.sender)
 
         # Hard reject with custom error message
         return False, {
